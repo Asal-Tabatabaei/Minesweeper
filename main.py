@@ -6,10 +6,9 @@ from src.minesweeper import MineSweeper
 
 # =========================================================================
 # Section 1: Define First-Order Logic Terms (FOL Terms)
-# Students should define the required terms, facts, and rules for pyDatalog here.
 # =========================================================================
-# Hint: pyDatalog.create_terms('X, Y, R, C, ...')
-
+pyDatalog.create_terms('R, C, R2, C2, N, Adj, Revealed, Flagged, Hidden, Safe, Mine, TempSafe, TempMine')
+pyDatalog.create_terms('FlaggedNeighborCount, HiddenNeighborCount')
 
 # Suggested constants for the agent's internal memory (Shadow Board)
 AGENT_UNKNOWN = -1
@@ -22,25 +21,57 @@ AGENT_FLAGGED = -2
 def init_static_facts(rows, cols):
     """
     Task 1: Generate static facts at the beginning of the game 
-    (e.g., adjacency relationships between cells).
+    (adjacency relationships between cells).
     """
-    pass
+    pyDatalog.assert_fact('Adj', None, None, None, None)
+    pyDatalog.load('') 
+    
+    for r in range(rows):
+        for c in range(cols):
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    if dr == 0 and dc == 0:
+                        continue
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < rows and 0 <= nc < cols:
+                        + Adj(r, c, nr, nc)
 
 def init_rules():
     """
     Task 2: Define logical inference rules (Safety Rule and Danger Rule).
-    According to the project documentation, rules must be defined based on first-order logic.
     """
-    # Safe(R2, C2) <= (...)
-    # Mine(R2, C2) <= (...)
-    pass
+    pyDatalog.load('')
+
+    (FlaggedNeighborCount[R, C] == len(R2)) <= Adj(R, C, R2, C2) & Flagged(R2, C2)
+    
+    (HiddenNeighborCount[R, C] == len(R2)) <= Adj(R, C, R2, C2) & Hidden(R2, C2)
+
+    
+    TempMine(R2, C2) <= Revealed(R, C, N) & Adj(R, C, R2, C2) & Hidden(R2, C2) & (N == HiddenNeighborCount[R, C])
+   
+    TempSafe(R2, C2) <= Revealed(R, C, N) & Adj(R, C, R2, C2) & Hidden(R2, C2) & (N == FlaggedNeighborCount[R, C])
+
+    Mine(R, C) <= TempMine(R, C)
+    Safe(R, C) <= TempSafe(R, C)
 
 def update_knowledge_base(agent_board, rows, cols):
     """
     Task 3: Convert the agent's internal memory (agent_board) into dynamic facts in each turn.
     Before adding new facts, facts from the previous turn must be cleared.
     """
-    pass
+    pyDatalog.assert_fact('Revealed', None, None, None)
+    pyDatalog.assert_fact('Flagged', None, None)
+    pyDatalog.assert_fact('Hidden', None, None)
+    pyDatalog.assert_fact('TempSafe', None, None)
+    pyDatalog.assert_fact('TempMine', None, None)
+    
+    for (r, c), val in agent_board.items():
+        if val == AGENT_UNKNOWN:
+            + Hidden(r, c)
+        elif val == AGENT_FLAGGED:
+            + Flagged(r, c)
+        elif val >= 0:
+            + Revealed(r, c, val)
 
 def query_solver():
     """
@@ -50,10 +81,15 @@ def query_solver():
     safe_moves = []
     mine_moves = []
     
-    # Code for querying Safe(R, C) and Mine(R, C)
-    
+    safe_results = pyDatalog.ask('Safe(R, C)')
+    if safe_results:
+        safe_moves = list(safe_results.answers)
+        
+    mine_results = pyDatalog.ask('Mine(R, C)')
+    if mine_results:
+        mine_moves = list(mine_results.answers)
+        
     return safe_moves, mine_moves
-
 # =========================================================================
 # Section 3: Uncertainty Handling Strategy (Smart Guess) - Optional/Bonus
 # =========================================================================
@@ -125,4 +161,4 @@ if __name__ == "__main__":
     # Default settings based on the first scenario (Simple level) in the evaluation table
     # Note: auto_flood_fill must be False to preserve the encapsulation of the agent's memory.
     ms = MineSweeper(rows=9, cols=9, mines=10, seed=99, auto_flood_fill=False)
-    prolog_solver(ms)
+    prolog_solver(ms) 
